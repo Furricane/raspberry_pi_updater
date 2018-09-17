@@ -34,8 +34,7 @@ class Com(Enum):
     autoremove = "sudo apt-get -y autoremove"
     autoclean = "sudo apt-get -y autoclean"
     clean = "sudo apt-get -y clean"
-    remove_bloat = "sudo apt-get -y remove --purge wolfram-engine scratch nuscratch sonic-pi idle3 smartsim java-common minecraft-pi python-minecraftpi python3-minecraftpi libreoffice scratch2"
-    remove_libre_office = "sudo apt-get -y remove --purge libreoffice*"
+    remove_bloatware = "sudo apt-get -y remove --purge dillo wolfram-engine scratch* nuscratch sonic-pi idle3 smartsim java-common minecraft-pi python-minecraftpi python3-minecraftpi libreoffice* gpicview oracle-java8-jdk openjdk-7-jre oracle-java7-jdk openjdk-8-jre"
     
        
 RPI = { "Homecontrol" : '192.168.1.91',
@@ -78,7 +77,7 @@ sys_action_dict = OrderedDict()
 sys_action_dict["Send SSH Command"] = "pi.send_ssh_command"
 sys_action_dict["Pi Update (apt-get update, apt-get upgrade, apt-get dist-upgrade, rpi-update)"] = "pi.update"
 sys_action_dict["Pi Standard Module Install ("+str(std_apt_install)+")"] = "pi.apt_install"
-sys_action_dict["Remove Bloat and LibreOffice"] = "pi.remove_bloat"
+sys_action_dict["Remove Bloatware"] = "pi.remove_bloat"
 sys_action_dict["Pi Autoremove & Autoclean"] = "pi.autoremove_and_autoclean"
 sys_action_dict["Reboot Pi"] = "pi.reboot"
 
@@ -158,8 +157,7 @@ class SSHClass():
         self.write(Com.autoclean)
         
     def remove_bloat(self):
-        self.write(Com.remove_bloat)
-        self.write(Com.remove_libre_office)
+        self.write(Com.remove_bloatware)
         self.write(Com.clean)
         self.autoremove_and_autoclean()
 
