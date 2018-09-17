@@ -34,7 +34,7 @@ class Com(Enum):
     autoremove = "sudo apt-get -y autoremove"
     autoclean = "sudo apt-get -y autoclean"
     clean = "sudo apt-get -y clean"
-    remove_bloatware = "sudo apt-get -y remove --purge dillo wolfram-engine scratch* nuscratch sonic-pi idle3 smartsim java-common minecraft-pi python-minecraftpi python3-minecraftpi libreoffice* gpicview oracle-java8-jdk openjdk-7-jre oracle-java7-jdk openjdk-8-jre"
+    purge = "sudo apt-get -y remove --purge "
     
        
 RPI = { "Homecontrol" : '192.168.1.91',
@@ -54,10 +54,11 @@ std_pip_install = ['schedule', 'colorama', 'requests', 'pyserial', 'httplib2', '
                  'sleekxmpp', 'pubnub',  'urllib3', 'pychromecast', 'plexapi']
                 
 # these take a while, don't need to be on every Pi
-add_pip_install = ['numpy', 'matplotlib','pandas']
-                
-# Sequence to install Python3.6
+add_pip_install = ['numpy', 'pandas']
 
+purge_list =  "dillo wolfram-engine scratch* nuscratch sonic-pi idle3 smartsim java-common minecraft-pi python-minecraftpi python3-minecraftpi libreoffice* gpicview oracle-java8-jdk openjdk-7-jre oracle-java7-jdk openjdk-8-jre"
+                    
+# Sequence to install Python3.6
 python36_install = ['sudo apt-get -y install libssl-dev',
                     'sudo cd /',
                     'sudo pwd',
@@ -77,7 +78,7 @@ sys_action_dict = OrderedDict()
 sys_action_dict["Send SSH Command"] = "pi.send_ssh_command"
 sys_action_dict["Pi Update (apt-get update, apt-get upgrade, apt-get dist-upgrade, rpi-update)"] = "pi.update"
 sys_action_dict["Pi Standard Module Install ("+str(std_apt_install)+")"] = "pi.apt_install"
-sys_action_dict["Remove Bloatware"] = "pi.remove_bloat"
+sys_action_dict["Remove Bloatware"] = "pi.purge"
 sys_action_dict["Pi Autoremove & Autoclean"] = "pi.autoremove_and_autoclean"
 sys_action_dict["Reboot Pi"] = "pi.reboot"
 
@@ -156,14 +157,17 @@ class SSHClass():
         self.write(Com.autoremove)
         self.write(Com.autoclean)
         
-    def remove_bloat(self):
-        self.write(Com.remove_bloatware)
-        self.write(Com.clean)
-        self.autoremove_and_autoclean()
-
     def upgrade_pip(self):
         self.write(Com.pip_upgrade_pip)
                     
+    def purge(self, package=None):
+        if not package:
+            package = purge_list
+        cmd = Com.purge.value+package
+        self.write(cmd)
+        self.write(Com.clean)
+        self.autoremove_and_autoclean()
+        
     def pip_update_all(self):
         self.write(Com.pip_update_all)
                     
