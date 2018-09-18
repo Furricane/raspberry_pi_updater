@@ -271,10 +271,15 @@ def run():
 
             #print("Test="+str(test))
             execfunc = eval(test)
+            for action, item in sys_action_dict.items():
+                if item[0] == test:
+                    index = list(sys_action_dict.keys()).index(action)
+            app.set_cb_text_color(index, "green", "yellow")
             if arg:
                 execfunc(arg)
             else:
                 execfunc()
+            app.set_cb_text_color(index)
         app.set_pi_text_color(RPILIST.index(key))
 
 pi = SSHClass("Homecontrol", username, password)
@@ -320,12 +325,18 @@ class App(threading.Thread):
         else:
             return None
         
-    def set_pi_text_color(self, index,fg_color='SystemWindowText',bg_color='SystemButtonFace'):
+    def set_pi_text_color(self,index,fg_color='SystemWindowText',bg_color='SystemButtonFace'):
         #print(self.pi_cb[index]['fg'])
         #print(self.pi_cb[index]['bg'])
         self.pi_cb[index]['fg']=fg_color
         self.pi_cb[index]['bg']=bg_color
-        
+  
+    def set_cb_text_color(self,index,fg_color='SystemWindowText',bg_color='SystemButtonFace'):
+        #print(self.pi_cb[index]['fg'])
+        #print(self.pi_cb[index]['bg'])
+        self.action_cb[index]['fg']=fg_color
+        self.action_cb[index]['bg']=bg_color
+              
     #def retrieve_ssh_input(self):
         #return self.ssh.get() 
    
