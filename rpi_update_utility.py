@@ -5,6 +5,7 @@ import sys
 sys.path.append('../PythonUtilities')
 import CFGFileHelper
 import ThreadHelper
+from colorama import init, Fore, Back, Style
 from tkinter import *
 import threading
 from collections import OrderedDict 
@@ -22,8 +23,8 @@ login_cfgpath = '../Private/pi.ini'
 logindict = CFGFileHelper.read_raw(login_cfgpath, 'pi')
 username = logindict['username']
 password = logindict['password']
-print(username)
-print(password)
+#print(username)
+#print(password)
 
 cfgpath = 'rpi_updater.ini'
 pidict = CFGFileHelper.read_raw(cfgpath, 'Raspberry Pi')
@@ -32,10 +33,10 @@ cfgdict = CFGFileHelper.read_raw(cfgpath, 'Config')
 std_apt_install = cfgdict['std_apt_install']
 std_pip_install = cfgdict['std_pip_install']
 purge_list = cfgdict['purge_list']
-print(RPILIST)
-print(std_apt_install)
-print(std_pip_install)
-print(purge_list)
+#print(RPILIST)
+#print(std_apt_install)
+#print(std_pip_install)
+#print(purge_list)
 
 def list_to_string(listname):
     liststring = ", ".join(listname)
@@ -99,18 +100,18 @@ class SSHClass():
         self.ip = pidict[name]
     
     def connect(self):
-        print('\nConnecting to '+ self.name + ", " + self.ip)
+        print(Fore.YELLOW+'\nConnecting to '+ self.name + ", " + self.ip)
         try:
             self.ssh.connect(self.ip, username=self.username, password=self.password, allow_agent = False)
             #print(self.ssh)
         except:
-            print('Failed to connect to '+self.name)
+            print(Fore.YELLOW+'Failed to connect to '+self.name)
        
     def write(self, cmd, autoprompt=False, waitforinput=True):
         if isinstance(cmd, Enum):
             cmd = cmd.value
         out = None
-        print("\n>> Executing: "+cmd)
+        print(Fore.CYAN+"\n>> Executing: "+cmd)
         self.stdin, self.stdout, self.stderr  = self.ssh.exec_command(cmd, get_pty=True) 
         if waitforinput:
             while not self.stdout.channel.exit_status_ready():
@@ -123,7 +124,7 @@ class SSHClass():
                         elif "Do you want to continue" in line: 
                             self.stdin.write("Y\n")   
                             self.stdin.flush()
-        print(">> Done executing command")
+        print(Fore.CYAN+">> Done executing command")
     
     
     def write_sequence(self, cmdlist, autoprompt=False):
@@ -170,13 +171,13 @@ class SSHClass():
         #print(module)
         cmdlist = []
         if isinstance(module, Enum):
-            print('Module is enum')
+            #print('Module is enum')
             cmd = basecmd + module.value
             if upgrade:
                 cmd += " --upgrade"
             cmdlist.append(cmd)
         elif isinstance(module, list):
-            print('Module is list')
+            #print('Module is list')
             for mod in module:
                 cmd = basecmd + mod
                 if upgrade:
@@ -185,7 +186,7 @@ class SSHClass():
             for cmd in cmdlist:
                 self.write(cmd, autoprompt=True)
         else:
-            print('Module is string')
+            #print('Module is string')
             cmd = basecmd + module
             if upgrade:
                 cmd += " --upgrade"
@@ -222,20 +223,16 @@ def run():
     pi_select_list = app.retrieve_pi_select_input()
     testlist = app.retrieve_pi_sys_input()
     testlist += app.retrieve_pi_py_input()
-    print(testlist)
+    #print(testlist)
     
     for key in pi_select_list:
-
         pi = SSHClass(key, username, password)
         pi.connect()
-        app.set_pi_text_color(RPILIST.index(key), "green", "yellow")
-       # pi.write_sequence(['ls','pwd'])
-        
+        app.set_pi_text_color(RPILIST.index(key), "green", "yellow")    
         for test in testlist:
-            print("Test="+str(test))
+            #print("Test="+str(test))
             execfunc = eval(test)
             execfunc()
-            
         app.set_pi_text_color(RPILIST.index(key))
 
 pi = SSHClass("Homecontrol", username, password)
@@ -250,8 +247,7 @@ class App(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.start()
- 
-       
+        
     def callback(self):
         self.root.quit()
        
@@ -277,50 +273,40 @@ class App(threading.Thread):
         for var in self.pi_cb_list:
             x = var.get()
             if x == 1:
-                #print(RPILIST[i]+" is active")
                 self.active_list.append(RPILIST[i])
             i+=1
-        print(self.active_list)
+        #print(self.active_list)
         return self.active_list 
  
     def retrieve_pi_sys_input(self):
         self.sys_list = []
         self.action_list = list(sys_action_dict.keys())
-        #print(self.action_list)
         i = 0
         for var in self.action_cb_list:
             value = var.get()
             if value == 1:
                 key = self.action_list[i]
                 action = sys_action_dict[key][0]
-                print(key)
-                print(action)
-                #print(RPILIST[i]+" is active")
                 self.sys_list.append(action)
             i+=1
-        print(self.sys_list)
+        #print(self.sys_list)
         return self.sys_list 
    
     def retrieve_pi_py_input(self):
         self.py_list = []
         self.py_action_list = list(py_action_dict.keys())
-        #print(action_list)
         i = 0
         for var in self.py_action_cb_list:
             value = var.get()
             if value == 1:
                 key = self.py_action_list[i]
                 action = py_action_dict[key][0]
-                print(key)
-                print(action)
-                #print(RPILIST[i]+" is active")
                 self.py_list.append(action)
             i+=1
-        print(self.py_list)
+        #print(self.py_list)
         return self.py_list 
         
     def update_mouseover_text(self, text=""):
-        #print(text)
         self.info["text"] = text
     
     def run(self):
@@ -379,8 +365,7 @@ class App(threading.Thread):
             self.pi_cb[i].bind("<Leave>", lambda event: self.update_mouseover_text(text=''))
             r+=1
             i+=1
- 
-                  
+        
         r += 1
         label = Label(self.root, text="System Actions", font=("Helvetica", 12))
         label.grid(row=r,column=0, columnspan=2, sticky=W)
@@ -408,7 +393,6 @@ class App(threading.Thread):
             self.action_cb[i].bind("<Leave>", lambda event: self.update_mouseover_text(text=''))
             r+=1
             i+=1
-           
 
         # Python Actions
         r += 1
