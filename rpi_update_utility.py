@@ -216,26 +216,27 @@ class SSHClass():
     def reboot(self):
         self.write(Com.reboot)
 
+@ThreadHelper.threaded
 def run():
     global pi_select_list
     pi_select_list = app.retrieve_pi_select_input()
     testlist = app.retrieve_pi_sys_input()
+    testlist += app.retrieve_pi_py_input()
+    print(testlist)
     
     for key in pi_select_list:
-        #key = RPILIST[key]
+
         pi = SSHClass(key, username, password)
         pi.connect()
+        app.set_pi_text_color(RPILIST.index(key), "green")
        # pi.write_sequence(['ls','pwd'])
         
         for test in testlist:
-            print(test)
-            #index = app.action_list.index(test)
-            #print(index)
-            #testname = app.actions[index]
+            print("Test="+str(test))
             execfunc = eval(test)
             execfunc()
-        #while True:
-            #pass
+            
+        app.set_pi_text_color(RPILIST.index(key))
 
 pi = SSHClass("Homecontrol", username, password)
 
@@ -261,15 +262,8 @@ class App(threading.Thread):
             self.cs_status.config(fg="red") 
         self.status["text"] = newstatus
               
-    def toggle_open(self):
-        if self.button1_state:
-            self.button1['fg']='green'
-            self.button1['text']='Close Button'
-            self.button1_state = False
-        else:
-            self.button1['fg']='red'
-            self.button1['text']='Open Button'
-            self.button1_state = True
+    def set_pi_text_color(self, index, color='black'):
+        self.pi_cb[index]['fg']=color
 
     def retrieve_ssh_input(self):
         return self.ssh.get() 
@@ -289,7 +283,7 @@ class App(threading.Thread):
     def retrieve_pi_sys_input(self):
         self.sys_list = []
         self.action_list = list(sys_action_dict.keys())
-        print(self.action_list)
+        #print(self.action_list)
         i = 0
         for var in self.action_cb_list:
             value = var.get()
@@ -306,14 +300,14 @@ class App(threading.Thread):
    
     def retrieve_pi_py_input(self):
         self.py_list = []
-        self.py_action_list = list(py_action_dict.items())
+        self.py_action_list = list(py_action_dict.keys())
         #print(action_list)
         i = 0
         for var in self.py_action_cb_list:
             value = var.get()
             if value == 1:
-                key = self.py_action_list[i][0]
-                action = self.py_action_list[i][1]
+                key = self.py_action_list[i]
+                action = py_action_dict[key][0]
                 print(key)
                 print(action)
                 #print(RPILIST[i]+" is active")
@@ -367,17 +361,23 @@ class App(threading.Thread):
         label = Label(self.root, text="Raspberry Pi Selection", font=("Helvetica", 12))
         label.grid(row=r,column=0, columnspan=2, sticky=W)
         
-  
         r += 1
         self.pi_cb_list = []
+        self.pi_cb = [None]*len(RPILIST)
         i = 0
-        for item in RPILIST:
+        for key in RPILIST:
             #self.pi_select.insert(END, item)
             self.pi_cb_list.append(IntVar())
-            Checkbutton(self.root, text=item, variable=self.pi_cb_list[i]).grid(row=r, sticky=W)
+            action_text = key
+            mouseover_text = pidict[key]
+            self.pi_cb[i] = Checkbutton(self.root, text=action_text, variable=self.pi_cb_list[i])
+            self.pi_cb[i].grid(row=r, sticky=W)
+            self.pi_cb[i].bind("<Enter>", lambda event, t=mouseover_text: self.update_mouseover_text(text=t))
+            self.pi_cb[i].bind("<Leave>", lambda event: self.update_mouseover_text(text=''))
             r+=1
             i+=1
-        
+ 
+                  
         r += 1
         label = Label(self.root, text="System Actions", font=("Helvetica", 12))
         label.grid(row=r,column=0, columnspan=2, sticky=W)
