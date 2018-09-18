@@ -14,13 +14,32 @@ pi_select_list = []
 py_ver = '3.6.5'
 pip_ver = 'pip3.6'
 
-cfgpath = '../Private/pi.ini'
-logindict = CFGFileHelper.read_raw(cfgpath, 'pi')
+# Store username and password in a pi.ini file with the below format:
+#[pi]
+#username = xxxxxx
+#password = xxxxxxx
+login_cfgpath = '../Private/pi.ini'
+logindict = CFGFileHelper.read_raw(login_cfgpath, 'pi')
 username = logindict['username']
 password = logindict['password']
-
 print(username)
 print(password)
+
+cfgpath = 'rpi_updater.ini'
+pidict = CFGFileHelper.read_raw(cfgpath, 'Raspberry Pi')
+RPILIST = [*pidict] # get list of keys
+cfgdict = CFGFileHelper.read_raw(cfgpath, 'Config')
+std_apt_install = cfgdict['std_apt_install']
+std_pip_install = cfgdict['std_pip_install']
+purge_list = cfgdict['purge_list']
+print(RPILIST)
+print(std_apt_install)
+print(std_pip_install)
+print(purge_list)
+
+def list_to_string(listname):
+    liststring = ", ".join(listname)
+    return liststring
 
 class Com(Enum):
     pip_update_all = pip_ver+" freeze --local | grep -v '^\-e' | cut -d = -f 1 | xargs -n1 sudo "+pip_ver+" install -U"
@@ -36,28 +55,6 @@ class Com(Enum):
     clean = "sudo apt-get -y clean"
     purge = "sudo apt-get -y remove --purge "
     
-       
-RPI = { "Homecontrol" : '192.168.1.91',
-        "Camera" : '192.168.1.92',
-        "Plexserver" : '192.168.1.95' }
- 
-RPILIST = [*RPI] # get list of keys
-    
-print("SSH Interface to Raspberry Pi")
-
-
-# List of apt-get install 
-std_apt_install = ['fonts-droid-fallback', 'openssl', 'libssl-dev', 'python3-tk', 'python3-dev', 'python3-matplotlib', 'conky']
-
-# List of python modules to install with pip
-std_pip_install = ['schedule', 'colorama', 'requests', 'pyserial', 'httplib2', 'google-api-python-client',
-                 'sleekxmpp', 'pubnub',  'urllib3', 'pychromecast', 'plexapi']
-                
-# these take a while, don't need to be on every Pi
-add_pip_install = ['numpy', 'pandas']
-
-purge_list =  "dillo wolfram-engine scratch* nuscratch sonic-pi idle3 smartsim java-common minecraft-pi python-minecraftpi python3-minecraftpi libreoffice* gpicview oracle-java8-jdk openjdk-7-jre oracle-java7-jdk openjdk-8-jre"
-                    
 # Sequence to install Python3.6
 python36_install = ['sudo apt-get -y install libssl-dev',
                     'sudo cd /',
@@ -75,37 +72,31 @@ python36_install = ['sudo apt-get -y install libssl-dev',
 sys_update_list = [Com.apt_update, Com.apt_upgrade, Com.dist_upgrade, Com.rpi_upgrade]
 
 sys_action_dict = OrderedDict() 
-sys_action_dict["Send SSH Command"] = "pi.send_ssh_command"
-sys_action_dict["Pi Update (apt-get update, apt-get upgrade, apt-get dist-upgrade, rpi-update)"] = "pi.update"
-sys_action_dict["Pi Standard Module Install ("+str(std_apt_install)+")"] = "pi.apt_install"
-sys_action_dict["Remove Bloatware"] = "pi.purge"
-sys_action_dict["Pi Autoremove & Autoclean"] = "pi.autoremove_and_autoclean"
-sys_action_dict["Reboot Pi"] = "pi.reboot"
+sys_action_dict["Send SSH Command"] = ["pi.send_ssh_command"]
+sys_action_dict["RPi Update"] = ["pi.update", "Raspberry Pi Updates:\n apt-get update, apt-get upgrade, apt-get dist-upgrade, rpi-update"]
+sys_action_dict["RPi Standard Module Install"] = ["pi.apt_install", "Installs packages: \n"+list_to_string(std_apt_install)]
+sys_action_dict["Purge RPi Bloatware"] = ["pi.purge", "Removes packages: \n"+list_to_string(purge_list)]
+sys_action_dict["RPi Autoremove & Autoclean"] = ["pi.autoremove_and_autoclean"]
+sys_action_dict["Reboot RPi"] = ["pi.reboot"]
 
 py_action_dict = OrderedDict() 
-py_action_dict["Upgrade Pip Utility ("+Com.pip_upgrade_pip.value+")"] = "pi.upgrade_pip"
-py_action_dict["Install Modules ("+str(std_pip_install)+")"] = "pi.pip_install"
-py_action_dict["Pip Upgrade All"] = "pi.pip_update_all"
-py_action_dict["Install Python "+py_ver] = "pi.install_python"
+py_action_dict["Upgrade Pip Utility"] = ["pi.upgrade_pip", "Upgrades Pip utility:\n"+Com.pip_upgrade_pip.value]
+py_action_dict["Install Python Modules"] = ["pi.pip_install", "Installs Python Modules:\n"+list_to_string(std_pip_install)]
+py_action_dict["Pip Upgrade All"] = ["pi.pip_update_all", "Updates all installed Python Modules:\n"+Com.pip_update_all.value ]
+py_action_dict["Install Python "+py_ver] = ["pi.install_python"]
         
 class SSHClass():
     ssh = None
-    def __init__(self, ip, username, password):
+    def __init__(self, name, username, password):
         self.stdin = None
         self.stdout = None
         self.stderr = None
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.name = ip
-        self.ip = ip
         self.username = username
         self.password = password
-        if isinstance(ip, Enum):
-            self.name = ip.name
-            self.ip = ip.value
-        else:
-            self.name = ip
-            self.ip = RPI[ip]
+        self.name = name
+        self.ip = pidict[name]
     
     def connect(self):
         print('\nConnecting to '+ self.name + ", " + self.ip)
@@ -247,7 +238,7 @@ def run():
             #pass
 
 pi = SSHClass("Homecontrol", username, password)
-    
+
 class App(threading.Thread):
     status = None
     ssh = None
@@ -259,6 +250,7 @@ class App(threading.Thread):
         threading.Thread.__init__(self)
         self.start()
  
+       
     def callback(self):
         self.root.quit()
        
@@ -296,14 +288,14 @@ class App(threading.Thread):
  
     def retrieve_pi_sys_input(self):
         self.sys_list = []
-        self.action_list = list(sys_action_dict.items())
-        #print(action_list)
+        self.action_list = list(sys_action_dict.keys())
+        print(self.action_list)
         i = 0
         for var in self.action_cb_list:
             value = var.get()
             if value == 1:
-                key = self.action_list[i][0]
-                action = self.action_list[i][1]
+                key = self.action_list[i]
+                action = sys_action_dict[key][0]
                 print(key)
                 print(action)
                 #print(RPILIST[i]+" is active")
@@ -329,10 +321,16 @@ class App(threading.Thread):
             i+=1
         print(self.py_list)
         return self.py_list 
-                    
+        
+    def update_mouseover_text(self, text=""):
+        #print(text)
+        self.info["text"] = text
+    
     def run(self):
         self.root = Tk()
         self.root.protocol("WM_DELETE_WINDOW", self.callback)
+ 
+        self.root.geometry("400x600") #Width x Height
  
         pady=8
         padx=8
@@ -390,45 +388,56 @@ class App(threading.Thread):
         self.ssh.delete(0, END)
         self.ssh.insert(0, "")
         
-        #f1 = tk.Frame(root)
-        #b1 = tk.Button(f1, text="One button")
-        #b2 = tk.Button(f1, text="Another button")
-
         self.action_cb_list = []
+        self.action_cb = [None]*len(sys_action_dict)
         i = 0
-        for action in sys_action_dict:
+        for key in sys_action_dict:
             self.action_cb_list.append(IntVar())
-            Checkbutton(self.root, text=action, variable=self.action_cb_list[i]).grid(row=r, sticky=W, pady=cb_pady,padx=cb_padx)
+            if len(sys_action_dict[key]) > 1:
+                action_text = key
+                mouseover_text = sys_action_dict[key][1]
+            else:
+                action_text = key
+                mouseover_text = key
+            self.action_cb[i] = Checkbutton(self.root, text=action_text, variable=self.action_cb_list[i])
+            self.action_cb[i].grid(row=r, sticky=W, pady=cb_pady,padx=cb_padx)
+            self.action_cb[i].bind("<Enter>", lambda event, t=mouseover_text: self.update_mouseover_text(text=t))
+            self.action_cb[i].bind("<Leave>", lambda event: self.update_mouseover_text(text=''))
             r+=1
             i+=1
-            
- 
+           
+
         # Python Actions
         r += 1
         label = Label(self.root, text="Python Actions", font=("Helvetica", 12))
         label.grid(row=r,column=0, columnspan=2, sticky=W)
         
         r += 1
-        #self.ssh = Entry(self.root,width=20, font=font, justify=LEFT)
-        #self.ssh.grid(row=r,column=1,pady=pady,padx=padx, sticky=W)
-        #self.ssh.delete(0, END)
-        #self.ssh.insert(0, "")
-        
-        self.py_action_list = []
-        self.py_actions = ["pi.install_python"]
-
         self.py_action_cb_list = []
+        self.py_action_cb = [None]*len(py_action_dict)
         i = 0
-        for action in py_action_dict:
-            self.py_action_cb_list.append(IntVar())
-            Checkbutton(self.root, text=action, variable=self.py_action_cb_list[i]).grid(row=r, sticky=W, pady=cb_pady,padx=cb_padx)
+        for key in py_action_dict:
+            self.py_action_cb_list.append(IntVar())  
+            if len(py_action_dict[key]) > 1:
+                action_text = key
+                mouseover_text = py_action_dict[key][1]
+            else:
+                action_text = key
+                mouseover_text = key
+            self.py_action_cb[i] = Checkbutton(self.root, text=action_text, variable=self.py_action_cb_list[i])
+            self.py_action_cb[i].grid(row=r, sticky=W, pady=cb_pady,padx=cb_padx)
+            self.py_action_cb[i].bind("<Enter>", lambda event, t=mouseover_text: self.update_mouseover_text(text=t))
+            self.py_action_cb[i].bind("<Leave>", lambda event: self.update_mouseover_text(text=''))
             r+=1
             i+=1
-            
-   
+           
         r += 1
         self.button_pi_select = Button(self.root, width=width, bg=bg_color, text="Run", font=font, command=run)
         self.button_pi_select.grid(row=r,column=0,pady=pady,padx=padx, rowspan=1)
+        
+        r += 1
+        self.info = Label(self.root, justify=LEFT, font=font, text="", wraplength=400)
+        self.info.grid(row=r,column=0, columnspan=2, rowspan=3, sticky=W)
         
         self.root.mainloop()
  
