@@ -228,7 +228,7 @@ def run():
 
         pi = SSHClass(key, username, password)
         pi.connect()
-        app.set_pi_text_color(RPILIST.index(key), "green")
+        app.set_pi_text_color(RPILIST.index(key), "green", "yellow")
        # pi.write_sequence(['ls','pwd'])
         
         for test in testlist:
@@ -262,9 +262,12 @@ class App(threading.Thread):
             self.cs_status.config(fg="red") 
         self.status["text"] = newstatus
               
-    def set_pi_text_color(self, index, color='black'):
-        self.pi_cb[index]['fg']=color
-
+    def set_pi_text_color(self, index,fg_color='SystemWindowText',bg_color='SystemButtonFace'):
+        #print(self.pi_cb[index]['fg'])
+        #print(self.pi_cb[index]['bg'])
+        self.pi_cb[index]['fg']=fg_color
+        self.pi_cb[index]['bg']=bg_color
+        
     def retrieve_ssh_input(self):
         return self.ssh.get() 
    
