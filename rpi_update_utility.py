@@ -153,8 +153,8 @@ class SSHClass():
                     
     def purge(self, package=None):
         if not package:
-            package = purge_list
-        cmd = Com.purge.value+package
+            package = " ".join(purge_list)
+        cmd = Com.purge.value+" "+package
         self.write(cmd)
         self.write(Com.clean)
         self.autoremove_and_autoclean()
