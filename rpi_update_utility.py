@@ -174,7 +174,7 @@ class SSHClass():
     def pip_list_outdated(self):
         self.write(Com.pip_list_outdated)
         
-    def pip_install(self, module=None, upgrade=False):
+    def pip_install(self, module=None, upgrade=True):
         """Takes a module Enum, list of string module names, or single module string name"""
         basecmd = Com.pip_install.value+" "
         if not module:
@@ -312,6 +312,9 @@ class App(threading.Thread):
     def callback(self):
         self.root.quit()
        
+    def exit(self):
+        self.root.quit()
+        
     def update_status(self, newstatus, goodnews=True):
         if goodnews:
             self.status.config(fg="green")
@@ -457,8 +460,11 @@ class App(threading.Thread):
         r = self.create_checkboxes(r, sys_action_dict)
            
         r += 1
-        self.button_pi_select = Button(self.root, width=self.width, bg=self.bg_color, text="Run", font=self.font_sm, command=run)
-        self.button_pi_select.grid(row=r,column=0,pady=self.pady,padx=self.pady, rowspan=1)
+        self.button_run = Button(self.root, width=self.width, bg=self.bg_color, text="Run", font=self.font_sm, command=run)
+        self.button_run.grid(row=r,column=0,pady=self.pady,padx=self.pady, rowspan=1)
+        
+        self.button_exit = Button(self.root, width=self.width, bg=self.bg_color, text="Exit", font=self.font_sm, command=exit)
+        self.button_exit.grid(row=r,column=1,pady=self.pady,padx=self.pady, rowspan=1)
         
         r += 1
         self.info = Label(self.root, justify=LEFT, font=self.font_sm, text="", wraplength=400)
