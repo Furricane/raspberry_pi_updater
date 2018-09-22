@@ -158,7 +158,7 @@ class SSHClass():
                             # self.stdin.flush()
         # print(Fore.CYAN+">> Done executing command")
         
-    def write(self, cmd, autoprompt=False, waitforinput=True):
+    def write(self, cmd, autoprompt=True, waitforinput=True):
         """
 
         :param cmd: the command to be executed on the remote computer
@@ -166,23 +166,30 @@ class SSHClass():
                     execute('finger')
                     execute('cd folder_name')
         """
-        print("\n>> Executing: "+cmd)
+        if isinstance(cmd, Enum):
+            cmd = cmd.value
+        print(Fore.CYAN+"\n>> Executing: "+cmd)
         cmd = cmd.strip('\n')
         self.stdin.write(cmd + '\n')
         finish = 'end of stdOUT buffer'
         echo_cmd = 'echo {} $?'.format(finish)
-        self.stdin.write(echo_cmd + '\n')
-        shin = self.stdin
-        self.stdin.flush()
+        #self.stdin.write(echo_cmd + '\n')
+        #shin = self.stdin
+        #self.stdin.flush()
 
         shout = []
         sherr = []
         exit_status = 0
+        #while not self.stdout.channel.exit_status_ready():
+            #print(4)
         for line in self.stdout:
+           # for line in iter(self.stdout.readline, ""):
             if str(line).startswith(cmd) or str(line).startswith(echo_cmd):
+                print(1)
                 # up for now filled with shell junk from stdin
                 shout = []
             elif str(line).startswith(finish):
+                print(2)
                 # our finish command ends with the exit status
                 exit_status = int(str(line).rsplit(maxsplit=1)[1])
                 if exit_status:
@@ -192,22 +199,33 @@ class SSHClass():
                     shout = []
                 break
             else:
+                print(3)
                 # get rid of 'coloring and formatting' special characters
                 eline = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]').sub('', line).replace('\b', '').replace('\r', '')
                 shout.append(eline)
                 print(line, end="") 
-                #print(eline)
-
-        # first and last lines of shout/sherr contain a prompt
-        if shout and echo_cmd in shout[-1]:
-            shout.pop()
-        if shout and cmd in shout[0]:
-            shout.pop(0)
-        if sherr and echo_cmd in sherr[-1]:
-            sherr.pop()
-        if sherr and cmd in sherr[0]:
-            sherr.pop(0)
-
+                if autoprompt:        
+                    if "Press any key to continue" in line: 
+                        self.stdin.write("\n")
+                        self.stdin.flush()
+                    elif "Do you want to continue" in line: 
+                        self.stdin.write("Y\n")   
+                        self.stdin.flush()
+                    elif "Proceed (y/n)?" in line:
+                        self.stdin.write("Y\n")   
+                        self.stdin.flush()
+        if False:
+            # first and last lines of shout/sherr contain a prompt
+            if shout and echo_cmd in shout[-1]:
+                shout.pop()
+            if shout and cmd in shout[0]:
+                shout.pop(0)
+            if sherr and echo_cmd in sherr[-1]:
+                sherr.pop()
+            if sherr and cmd in sherr[0]:
+                sherr.pop(0)
+            
+        print(Fore.CYAN+">> Done executing command")
         return shin, shout, sherr
     
     def write_sequence(self, cmdlist, autoprompt=False):
@@ -363,7 +381,7 @@ def run():
             app.set_cb_text_color(index)
         app.set_pi_text_color(RPILIST.index(key))
 
-pi = SSHClass("Homecontrol", username, password)
+pi = SSHClass(RPILIST[0], username, password)
 
 class App(threading.Thread):
     status = None

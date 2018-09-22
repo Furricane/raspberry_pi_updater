@@ -1,4 +1,4 @@
-import paramiko
+from fabric import Connection
 import time
 from enum import Enum
 import sys
@@ -14,6 +14,7 @@ pi = None
 pi_select_list = []
 py_ver = '3.6.5'
 pip_ver = 'pip3.6'
+current_pi = None
 
 # Store username and password in a pi.ini file with the below format:
 #[pi]
@@ -46,7 +47,7 @@ class Com(Enum):
     pip_update_all = pip_ver+" freeze --local | grep -v '^\-e' | cut -d = -f 1 | xargs -n1 sudo "+pip_ver+" install -U"
     pip_upgrade_pip = "sudo "+pip_ver+" install --upgrade pip"
     pip_install = "sudo "+pip_ver+" install"
-    pip_remove = "sudo "+pip_ver+" uninstall -y"
+    pip_remove = "sudo "+pip_ver+" uninstall"
     pip_list_outdated = "sudo "+pip_ver+" list --outdated"
     pip_freeze = pip_ver+"freeze"
     apt_update = "sudo apt-get -y update"
@@ -91,50 +92,76 @@ sys_action_dict["Upgrade Pip Utility"] = ["pi.upgrade_pip", "Upgrades Pip utilit
 sys_action_dict["Install Python "+py_ver] = ["pi.install_python", "Install Python "+py_ver]
 sys_action_dict["Reboot RPi"] = ["pi.reboot", "Reboot RPi"]
         
-class SSHClass():
+class FabricClass():
     ssh = None
     def __init__(self, name, username, password):
         self.stdin = None
         self.stdout = None
         self.stderr = None
-        self.ssh = paramiko.SSHClient()
-        self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        #self.ssh = paramiko.SSHClient()
+        #self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.fabric = None
         self.username = username
         self.password = password
         self.name = name
         self.ip = pidict[name]
-    
+        #print(self.username)
+        self.kwargs={"password": password}
+        
     def connect(self):
         print(Fore.YELLOW+'\nConnecting to '+ self.name + " (" + self.ip+ ")")
-        try:
-            self.ssh.connect(self.ip, username=self.username, password=self.password, allow_agent = False)
+        self.fabric = Connection(self.ip, user=self.username, port=None, config=None, gateway=None, forward_agent=None, connect_timeout=None, connect_kwargs=self.kwargs, inline_ssh_env=None)
+        #print(self.fabric.is_connected)
+        #self.fabric.sudo('ls')
+        #try:
+            #self.fabric = fabric.connection.Connection(self.ip, user=self.username, port=None, config=None, gateway=None, forward_agent=None, connect_timeout=None, connect_kwargs=None, inline_ssh_env=None)
+            #self.ssh.connect(self.ip, username=self.username, password=self.password, allow_agent = False)
+            #channel = self.ssh.invoke_shell()
+            #self.stdin = channel.makefile('wb')
+            #self.stdout = channel.makefile('r')
             #print(self.ssh)
-        except:
-            print(Fore.YELLOW+'Failed to connect to '+self.name)
+        #except:
+            #print(Fore.YELLOW+'Failed to connect to '+self.name)
        
+    
+    # def sftp_put(self, localpath, localfilename, remotepath, remotefilename=None, callback=None):
+        # #self.create_sftp_client()
+        # if not remotefilename:
+            # remotefilename = localfilename
+        # print(localpath)
+        # localpath = OSHelper.get_path_string(localpath, localfilename)
+        # print(localpath)
+
+        # print(remotepath)
+        
+        # remotepath = OSHelper.get_path_string(remotepath, posix=True) 
+        # remotepathfull = remotepath + "/" +remotefilename
+        # print(remotepath)
+        # self.sftp = self.ssh.open_sftp()
+        # self.sftp.mkdir(remotepath, mode=511)
+        # self.sftp.put(localpath, remotepathfull, callback=None)
+
     def write(self, cmd, autoprompt=False, waitforinput=True):
         if isinstance(cmd, Enum):
             cmd = cmd.value
         out = None
         print(Fore.CYAN+"\n>> Executing: "+cmd)
-        self.stdin, self.stdout, self.stderr  = self.ssh.exec_command(cmd, get_pty=True) 
-        if waitforinput:
-            while not self.stdout.channel.exit_status_ready():
-                for line in iter(self.stdout.readline, ""):
-                    print(line, end="") 
-                    if autoprompt:        
-                        if "Press any key to continue" in line: 
-                            self.stdin.write("\n")
-                            self.stdin.flush()
-                        elif "Do you want to continue" in line: 
-                            self.stdin.write("Y\n")   
-                            self.stdin.flush()
-                        elif "Proceed (y/n)?" in line:
-                            self.stdin.write("Y\n")   
-                            self.stdin.flush()
+        result = self.fabric.run(cmd) 
+        for line in result.stdout.strip():
+            #print(line, end="") 
+            if "Press any key to continue" in line: 
+                print(Fore.RED+"prompt detected") 
+                #self.stdin.write("\n")
+                #self.stdin.flush()
+            elif "Do you want to continue" in line: 
+                print(Fore.RED+"prompt detected") 
+                #self.stdin.write("Y\n")   
+                #self.stdin.flush()
+            elif "Proceed (y/n)?" in line:
+                print(Fore.RED+"prompt detected") 
+                
         print(Fore.CYAN+">> Done executing command")
-    
-    
+           
     def write_sequence(self, cmdlist, autoprompt=False):
         """Run a list of commands"""
         for cmd in cmdlist:
@@ -143,12 +170,6 @@ class SSHClass():
     def send_ssh_command(self, cmd):
         #cmd = app.retrieve_ssh_input()
         self.write_sequence([cmd])
-        
-    def root_login(self):
-        self.write('/bin/su root -l',waitforinput=False)
-        while not self.stdout.channel.exit_status_ready():
-            print(stderr.readline())
-            self.stdin.write(password+'\n')
         
     def update(self):
         self.write_sequence(sys_update_list, autoprompt=True)
@@ -251,15 +272,21 @@ class SSHClass():
 
 @ThreadHelper.threaded
 def run():
-    global pi_select_list
+    global pi_select_list, current_pi
     pi_select_list = app.retrieve_pi_select_input()
     testlist = app.retrieve_pi_sys_input()
     #testlist += app.retrieve_pi_py_input()
     #print(testlist)
     
     for key in pi_select_list:
-        pi = SSHClass(key, username, password)
-        pi.connect()
+        if current_pi:
+            if current_pi.name == key:
+                print("already connected")
+                pi = current_pi
+        else:
+            pi = FabricClass(key, username, password)
+            pi.connect()
+            current_pi = pi
         app.set_pi_text_color(RPILIST.index(key), "green", "yellow")    
         for test in testlist:
             arg = None
@@ -282,7 +309,8 @@ def run():
             app.set_cb_text_color(index)
         app.set_pi_text_color(RPILIST.index(key))
 
-pi = SSHClass("Homecontrol", username, password)
+pi = FabricClass(RPILIST[0], username, password)
+#pi.connect()
 
 class App(threading.Thread):
     status = None
